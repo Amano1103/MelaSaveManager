@@ -1,5 +1,5 @@
 # MELA Save Manager<br>
-<img width="684" height="461" alt="MELA Save Manager 2026_02_03 3_45_40" src="https://github.com/user-attachments/assets/30ffb554-e70e-4cea-96ae-0a7db3b9e148" /><br><br>
+<img width="684" height="461" alt="MELA Save Manager 2026_02_03 4_26_34" src="https://github.com/user-attachments/assets/82287836-1989-4bd2-af44-fdc8e8da8a97" /><br><br>
 
 MELA Save Manager は、VRChatのワールド「Memena's Lord Arena (MELA)」のバックアップコードを自動で検出し、保存・管理するためのツールです。プレイ中にログをリアルタイムで監視し、バックアップコードが生成されるたびに自動でローカルに保存します。<br><br>
 
