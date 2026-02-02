@@ -11,13 +11,11 @@ using System.Runtime.InteropServices;
 
 namespace MelaSaveManager
 {
-    // データ管理用クラス
     public class BackupData
     {
         public string FullTimestamp { get; set; } = ""; 
         public string Code { get; set; } = "";
 
-        // 日付部分 (YYYY-MM-DD)
         public string DatePart
         {
             get 
@@ -28,7 +26,6 @@ namespace MelaSaveManager
             }
         }
 
-        // 時間部分 (HH:mm:ss)
         public string TimePart
         {
             get
@@ -47,37 +44,26 @@ namespace MelaSaveManager
 
     public partial class Form1 : Form
     {
-        // ----------------------------------------------------
-        // 設定項目
-        // ----------------------------------------------------
         private static readonly string LogDirectoryPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             @"AppData\LocalLow\VRChat\VRChat");
 
-        // 保存先ディレクトリ (exeと同じ場所の "SaveCode" フォルダ)
         private static readonly string SaveBaseDirectory = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, 
             "SaveCode");
         
-        // 画面パーツ
         private SplitContainer splitContainer;
-        private ListBox dateList;     // 左側：日付リスト
-        private ListBox timeList;     // 右側：時間リスト
+        private ListBox dateList;
+        private ListBox timeList;
 
-        // データリスト
         private List<BackupData> allBackups = new List<BackupData>();
         private bool isMonitoring = true;
 
         public Form1()
         {
-            // ----------------------------------------------------
-            // GUI構築
-            // ----------------------------------------------------
             this.Text = "MELA Save Manager";
             this.Size = new Size(700, 500);
 
-            // ▼ 追加: ウィンドウ左上のアイコンを設定
-            // 実行フォルダに app.ico があれば読み込む
             try
             {
                 if (File.Exists("app.ico"))
@@ -85,9 +71,8 @@ namespace MelaSaveManager
                     this.Icon = new Icon("app.ico");
                 }
             }
-            catch { /* アイコン読み込みエラーは無視 */ }
+            catch { }
 
-            // スプリットコンテナ (左右分割)
             splitContainer = new SplitContainer();
             splitContainer.Dock = DockStyle.Fill;
             splitContainer.SplitterWidth = 4;
@@ -95,7 +80,6 @@ namespace MelaSaveManager
             splitContainer.SplitterDistance = 200; 
             this.Controls.Add(splitContainer);
 
-            // --- 左側 (日付リスト) ---
             dateList = new ListBox();
             dateList.Dock = DockStyle.Fill;
             dateList.Font = new Font("Consolas", 12);
@@ -104,7 +88,6 @@ namespace MelaSaveManager
             dateList.SelectedIndexChanged += OnDateSelected; 
             splitContainer.Panel1.Controls.Add(dateList);
 
-            // --- 右側 (時間リスト) ---
             timeList = new ListBox();
             timeList.Dock = DockStyle.Fill;
             timeList.Font = new Font("Consolas", 12);
@@ -113,33 +96,22 @@ namespace MelaSaveManager
             timeList.SelectedIndexChanged += OnTimeSelected; 
             splitContainer.Panel2.Controls.Add(timeList);
 
-            // 読み込みイベント
             this.Load += OnFormLoad;
         }
 
-        private async void OnFormLoad(object? sender, EventArgs e)
+        private void OnFormLoad(object? sender, EventArgs e)
         {
-            // 起動時に SaveCode フォルダが無ければ作成
             if (!Directory.Exists(SaveBaseDirectory))
             {
                 Directory.CreateDirectory(SaveBaseDirectory);
             }
 
-            // 既存データを読み込み
             LoadSavedHistory();
 
-            FileInfo? latestLog = GetLatestLogFile();
-            if (latestLog != null)
-            {
-                await MonitorLogFileAsync(latestLog);
-            }
+            // 監視スタート（引数なしで呼び出し、自分自身でファイルを探させる）
+            _ = MonitorLogFileAsync();
         }
 
-        // ----------------------------------------------------
-        // ロジック
-        // ----------------------------------------------------
-
-        // フォルダ内の全ファイルを読み込む
         private void LoadSavedHistory()
         {
             allBackups.Clear();
@@ -165,28 +137,22 @@ namespace MelaSaveManager
                         {
                             string timePart = trimmed.Substring(0, firstLineEnd).Trim();
                             string codePart = trimmed.Substring(firstLineEnd).Trim();
-
                             timePart = timePart.Replace("[", "").Replace("]", "");
-                            
                             allBackups.Add(new BackupData { FullTimestamp = timePart, Code = codePart });
                         }
                     }
                 }
-                catch { /* 読み込みエラーは無視 */ }
+                catch { }
             }
 
-            // 日付順・時間順に並べ替え (新しい順)
             allBackups.Sort((a, b) => b.FullTimestamp.CompareTo(a.FullTimestamp));
-
             UpdateDateList();
         }
 
         private void UpdateDateList()
         {
             string? selectedDate = dateList.SelectedItem as string;
-
             dateList.Items.Clear();
-
             var uniqueDates = allBackups.Select(d => d.DatePart).Distinct().ToList();
 
             foreach (var date in uniqueDates)
@@ -207,20 +173,12 @@ namespace MelaSaveManager
             }
         }
 
-        // ----------------------------------------------------
-        // イベントハンドラ
-        // ----------------------------------------------------
-
         private void OnDateSelected(object? sender, EventArgs e)
         {
             if (dateList.SelectedItem == null) return;
-
             string selectedDate = dateList.SelectedItem.ToString() ?? "";
-            
             timeList.Items.Clear();
-
             var filteredItems = allBackups.Where(d => d.DatePart == selectedDate).ToList();
-
             foreach (var item in filteredItems)
             {
                 timeList.Items.Add(item);
@@ -239,7 +197,6 @@ namespace MelaSaveManager
             }
         }
 
-        // 日付ごとのファイルに保存
         private void AddNewBackup(string code, string timestamp)
         {
             if (InvokeRequired)
@@ -253,7 +210,6 @@ namespace MelaSaveManager
                 return;
             }
 
-            // 日付部分を取得 (例: 2026-02-03)
             string datePart = "Unknown";
             if (timestamp.Length >= 10)
             {
@@ -261,7 +217,6 @@ namespace MelaSaveManager
                 datePart = datePart.Replace("/", "-").Replace("\\", "-");
             }
 
-            // 保存先ファイルパス: SaveCode/2026-02-03.txt
             string fileName = $"{datePart}.txt";
             string filePath = Path.Combine(SaveBaseDirectory, fileName);
 
@@ -271,16 +226,13 @@ namespace MelaSaveManager
                 {
                     Directory.CreateDirectory(SaveBaseDirectory);
                 }
-
                 string saveContent = $"[{timestamp}]\n{code}\n----------------------------------------\n";
                 File.AppendAllText(filePath, saveContent);
             }
-            catch { /* 無視 */ }
+            catch { }
 
-            // メモリ上のリストに追加して画面更新
             var newData = new BackupData { FullTimestamp = timestamp, Code = code };
             allBackups.Insert(0, newData); 
-
             UpdateDateList(); 
             
             if (dateList.Items.Count > 0 && dateList.Items[0].ToString() == newData.DatePart)
@@ -289,58 +241,88 @@ namespace MelaSaveManager
             }
         }
 
-        // ----------------------------------------------------
-        // 監視ロジック
-        // ----------------------------------------------------
         private FileInfo? GetLatestLogFile()
         {
             if (!Directory.Exists(LogDirectoryPath)) return null;
             var dirInfo = new DirectoryInfo(LogDirectoryPath);
+            // output_log_*.txt の中で一番更新日時が新しいものを取得
             return dirInfo.GetFiles("output_log_*.txt")
                           .OrderByDescending(f => f.LastWriteTime)
                           .FirstOrDefault();
         }
 
-        private async Task MonitorLogFileAsync(FileInfo fileInfo)
+        // ▼ 変更: 自動ファイル切り替え機能を実装した監視ロジック
+        private async Task MonitorLogFileAsync()
         {
             string pattern = @"\$\$MELA Achievements Backup:\$\$(.*?)\$\$Backup Over\$\$";
             Regex regex = new Regex(pattern, RegexOptions.Singleline);
 
-            try
+            // 最初に現在の最新ログを取得
+            FileInfo? currentFile = GetLatestLogFile();
+
+            while (isMonitoring)
             {
-                using (FileStream fs = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (StreamReader sr = new StreamReader(fs, Encoding.UTF8))
+                // ファイルが見つからない場合は待機して再検索
+                if (currentFile == null)
                 {
-                    while (isMonitoring)
+                    await Task.Delay(3000);
+                    currentFile = GetLatestLogFile();
+                    continue;
+                }
+
+                // 現在のファイルを開いて監視
+                try
+                {
+                    using (FileStream fs = new FileStream(currentFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (StreamReader sr = new StreamReader(fs, Encoding.UTF8))
                     {
-                        string? line = await sr.ReadLineAsync();
-
-                        if (line != null)
+                        // ファイルが開けたら、中身を読み続けるループへ
+                        while (isMonitoring)
                         {
-                            Match match = regex.Match(line);
-                            if (match.Success)
+                            string? line = await sr.ReadLineAsync();
+
+                            if (line != null)
                             {
-                                string timestamp = "";
-                                if (line.Length >= 19)
+                                // データがある場合の処理（前回と同じ）
+                                Match match = regex.Match(line);
+                                if (match.Success)
                                 {
-                                    timestamp = line.Substring(0, 19).Replace(".", "-");
+                                    string timestamp = "";
+                                    if (line.Length >= 19)
+                                    {
+                                        timestamp = line.Substring(0, 19).Replace(".", "-");
+                                    }
+                                    else
+                                    {
+                                        timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                                    }
+                                    AddNewBackup(match.Groups[1].Value, timestamp);
                                 }
-                                else
-                                {
-                                    timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                                }
-
-                                AddNewBackup(match.Groups[1].Value, timestamp);
                             }
-                        }
-                        else
-                        {
-                            await Task.Delay(1000);
+                            else
+                            {
+                                // ファイルの末尾に到達した場合
+                                // ここで「もっと新しいファイルができていないか？」をチェックします
+                                await Task.Delay(1000);
+
+                                FileInfo? latest = GetLatestLogFile();
+                                if (latest != null && latest.FullName != currentFile.FullName)
+                                {
+                                    // ファイル名が違う＝新しいログファイルが生成された！
+                                    // ターゲットを新しいファイルに切り替えるため、内側のループ(StreamReader)を抜ける
+                                    currentFile = latest;
+                                    break; 
+                                }
+                            }
                         }
                     }
                 }
+                catch
+                {
+                    // ファイルが開けない場合などのエラー待機
+                    await Task.Delay(1000);
+                }
             }
-            catch { }
         }
     }
 }
