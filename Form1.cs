@@ -251,7 +251,6 @@ namespace MelaSaveManager
                           .FirstOrDefault();
         }
 
-        // ▼ 変更: 自動ファイル切り替え機能を実装した監視ロジック
         private async Task MonitorLogFileAsync()
         {
             string pattern = @"\$\$MELA Achievements Backup:\$\$(.*?)\$\$Backup Over\$\$";
@@ -283,7 +282,7 @@ namespace MelaSaveManager
 
                             if (line != null)
                             {
-                                // データがある場合の処理（前回と同じ）
+                                // データがある場合の処理
                                 Match match = regex.Match(line);
                                 if (match.Success)
                                 {
@@ -301,15 +300,13 @@ namespace MelaSaveManager
                             }
                             else
                             {
-                                // ファイルの末尾に到達した場合
-                                // ここで「もっと新しいファイルができていないか？」をチェックします
+                                // ファイルの末尾に到達した場合新しいファイルができていないかチェック
                                 await Task.Delay(1000);
 
                                 FileInfo? latest = GetLatestLogFile();
                                 if (latest != null && latest.FullName != currentFile.FullName)
                                 {
-                                    // ファイル名が違う＝新しいログファイルが生成された！
-                                    // ターゲットを新しいファイルに切り替えるため、内側のループ(StreamReader)を抜ける
+                                    // ターゲットを新しいファイルに切り替えるため、内側のループを抜ける
                                     currentFile = latest;
                                     break; 
                                 }
@@ -326,3 +323,4 @@ namespace MelaSaveManager
         }
     }
 }
+
